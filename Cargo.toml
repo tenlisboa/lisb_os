@@ -5,6 +5,7 @@ edition = "2018"
 authors = ["Gabriel Lisboa <gabriellisboa.rx@gmail.com>"]
 
 [dependencies]
+bootloader = "0.9"
 
 [profile.dev]
 panic = "abort"
