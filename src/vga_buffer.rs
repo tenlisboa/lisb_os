@@ -5,6 +5,8 @@ use volatile::Volatile;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+use crate::serial_println;
+
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
@@ -120,6 +122,19 @@ impl Writer {
             self.buffer.chars[row][col].write(blank);
         }
     }
+
+    fn clear(&mut self) {
+        let blank = ScreenChar {
+            ascii_character: b' ',
+            color_code: self.color_code,
+        };
+
+        for row in 0..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                self.buffer.chars[row][col].write(blank);
+            }
+        }
+    }
 }
 
 impl fmt::Write for Writer {
@@ -144,4 +159,51 @@ macro_rules! println {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[test_case]
+fn test_println_simple() {
+    println!("test_println_simples output");
+    WRITER.lock().clear();
+}
+
+#[test_case]
+fn test_println_many() {
+    for _ in 0..200 {
+        println!("test_println_many output");
+    }
+    WRITER.lock().clear();
+}
+
+#[test_case]
+fn test_println_output() {
+    let s = "Some test string that fits on a single line";
+    println!("{}", s);
+    for (i, c) in s.chars().enumerate() {
+        let screen_char = WRITER.lock().buffer.chars[BUFFER_HEIGHT - 2][i].read();
+        assert_eq!(char::from(screen_char.ascii_character), c);
+    }
+    WRITER.lock().clear();
+}
+
+#[test_case]
+fn test_println_with_large_string() {
+    let s = "Some really large string that may fit or may not fit into the column for the VGA buffer and should be wrapped to a new line.";
+    println!("{}", s);
+    let initial_column = s.len().div_ceil(BUFFER_WIDTH) + 2;
+    let mut chars = s.chars();
+
+    for col in (1..initial_column).rev() {
+        serial_println!("{}", col);
+        for i in 0..80 {
+            let c = match chars.next() {
+                None => char::from(b' '),
+                Some(i) => i,
+            };
+            let sceen_char = WRITER.lock().buffer.chars[BUFFER_HEIGHT - col][i].read();
+
+            assert_eq!(char::from(sceen_char.ascii_character), c);
+        }
+    }
+    WRITER.lock().clear();
 }
