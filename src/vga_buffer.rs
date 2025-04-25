@@ -5,8 +5,6 @@ use volatile::Volatile;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::serial_println;
-
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
@@ -123,6 +121,7 @@ impl Writer {
         }
     }
 
+    #[cfg(test)]
     fn clear(&mut self) {
         let blank = ScreenChar {
             ascii_character: b' ',
@@ -194,7 +193,6 @@ fn test_println_with_large_string() {
     let mut chars = s.chars();
 
     for col in (1..initial_column).rev() {
-        serial_println!("{}", col);
         for i in 0..80 {
             let c = match chars.next() {
                 None => char::from(b' '),
